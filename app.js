@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 
 // TODO JSA - remove unused imports
+import { VerifyDiscordRequest, DiscordRequest } from './utils.js';
+
 import {
   InteractionType,
   InteractionResponseType,
@@ -9,8 +11,13 @@ import {
   MessageComponentTypes,
   ButtonStyleTypes,
 } from 'discord-interactions';
-import { VerifyDiscordRequest, DiscordRequest } from './utils.js';
-import { GetTrick } from './skatedice.js';
+
+import {
+  GetTrick,
+  GetTrickTypePromptComponent,
+  GetTrickResultComponent,
+  GetLetters
+} from './skatedice.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -43,7 +50,8 @@ app.post('/interactions', async function (req, res) {
     gameState[userId] = {
       state: 'newgame',
       points: 0,
-      letters: 0
+      letters: 0,
+      currentTrick: "",
     };
   }
   let playerGameState = gameState[userId];
@@ -70,45 +78,16 @@ app.post('/interactions', async function (req, res) {
     }
 
     if (name === 'skatedice') {
-
       console.log('skatedice command received');
-
-      
-
       console.log('player game state', playerGameState);
 
-      if (playerGameState.state === 'newgame') {
+      if (playerGameState.state === 'newgame' || playerGameState.state === 'awaitingtricktype') {
         playerGameState.state = 'awaitingtricktype';
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
             content: "Starting a new game of SKATE! Please select a trick type.",
-            // TODO JSA - Might need ephemeral here
-            components: [
-              {
-                type: MessageComponentTypes.ACTION_ROW,
-                components: [
-                  {
-                    type: MessageComponentTypes.BUTTON,
-                    custom_id: 'trick_type_flatground',
-                    label: 'Flatground',
-                    style: ButtonStyleTypes.PRIMARY
-                  },
-                  {
-                    type: MessageComponentTypes.BUTTON,
-                    custom_id: 'trick_type_ledge',
-                    label: 'Ledge',
-                    style: ButtonStyleTypes.PRIMARY
-                  },
-                  {
-                    type: MessageComponentTypes.BUTTON,
-                    custom_id: 'trick_type_transition',
-                    label: 'Transition',
-                    style: ButtonStyleTypes.PRIMARY
-                  }
-                ]
-              }
-            ]
+            components: GetTrickTypePromptComponent()
           }
         });
       }
@@ -118,7 +97,8 @@ app.post('/interactions', async function (req, res) {
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: "Awaiting trick result.",
+            content: "Your trick is "+playerGameState.currentTrick+"\nDid you land the trick?",
+            components: GetTrickResultComponent()
           },
         });
       }
@@ -144,26 +124,89 @@ app.post('/interactions', async function (req, res) {
   if (type === InteractionType.MESSAGE_COMPONENT) {
     console.log("got interaction type", data);
     const componentId = data.custom_id;
+    const deleteEndpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/${req.body.message.id}`;
 
     // Hanlding trick type selection
     if (componentId.startsWith('trick_type_')) {
       // We need to delete the trick type prompt once the user has responded to it
-      const deleteEndpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/${req.body.message.id}`;
       const trickType = componentId.replace('trick_type_', '');
 
       // Get the random trick
+      // TODO JSA - I think this should give you the yes/no prompt instead of requiring you to 
       let trick = GetTrick('easy', trickType);
+      playerGameState.currentTrick = trick;
       playerGameState.state = 'awaitingtrickresult'; // TODO JSA - Change to enum
-      return res.send({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: "Your trick is: "+trick+".\nNext, use the /skatedice command to report your result."
-        },
-      });
+      try {
+        // Send the trick
+        await res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: "Your trick is: "+trick+".\n"+"Did you land it?\nYou can also use the /skatedice command later to respond.",
+            components: GetTrickResultComponent()
+          },
+        });
+
+        // Delete the trick prompt message.
+        await DiscordRequest(deleteEndpoint, { method: "DELETE" });
+      } catch (err) {
+        console.error('Error sending trick type selection response.');
+      }
+      return;
+    }
+
+    // Trick Landed/Missed prompt
+    if (componentId.startsWith('trick_result_')) {
+      // handle success and failure here
+      console.log('got trick result prompt');
+      playerGameState.state = 'awaitingtricktype';
+      if (componentId === 'trick_result_success') { // Handle trick success
+        // Award points and start a new trick
+        playerGameState.points += 1;
+        
+        res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: "You landed the trick! You now have "+playerGameState.points+" points.\nSelect a new trick.",
+            components: GetTrickTypePromptComponent(),
+          }
+        });
+      } else { // Handle trick failure
+        // Give a letter
+        playerGameState.letters += 1;
+
+        // If you have 5 letters the game is over.
+        if (playerGameState.letters >= 5) {
+          playerGameState.state = 'newgame';
+          let gamePoints = playerGameState.points;
+          playerGameState.points = 0; // Set points to zero since the game is over
+          res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: "You have SKATE. Game over\n You scored "+playerGameState.points+" points.",
+            }
+          });
+        } else {
+          // Otherwise, just prompt for a new trick
+          playerGameState.state = 'awaitingtricktype';
+          let letters = GetLetters(playerGameState.letters);
+          res.send({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: "You missed the trick! You now have: '"+letters+"'.\nSelect a new trick.",
+              components: GetTrickTypePromptComponent(),
+            }
+          });
+        }   
+      }
+
+      // Delete the prompt message
+      await DiscordRequest(deleteEndpoint, { method: "DELETE" });
+      return;
     }
   }
+
   // Last ditch response in case we didn't expect the message.
-  console.log("Type: "+type);
+  console.log("Unexpected interaction type: "+type);
   console.log(type === InteractionType.MESSAGE_COMPONENT);
   return res.send({
     type:InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
