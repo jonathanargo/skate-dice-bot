@@ -45,9 +45,6 @@ const SKATE_DICE = {
     }]
 }
 
-const STATUS = {
-    
-}
 const ALL_COMMANDS = [TEST_COMMAND, SKATE_DICE];
 
 InstallCommands(process.env.APP_ID, ALL_COMMANDS);

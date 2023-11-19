@@ -4,10 +4,16 @@ import {
   } from 'discord-interactions';
 
 export const LEVELS = {
-    EASY: 'easy',
-    MEDIUM: 'medium',
-    HARD: 'hard'
+    EASY: 1,
+    MEDIUM: 2,
+    HARD: 3
 };
+
+export const LEVEL_NAMES = {
+    [LEVELS.EASY]: 'Easy',
+    [LEVELS.MEDIUM]: 'Medium',
+    [LEVELS.HARD]: 'Hard'
+}
 
 export const TRICK_TYPES = {
     FLATGROUND: 'flatground',
@@ -18,14 +24,14 @@ export const TRICK_TYPES = {
 // TODO JSA - Implement these
 export const GAME_STATES = {
     NEW_GAME: 'newgame',
-    TRICK_TYPE_SELECTED: 'awaitingtricktype',
-    TRICK_RESULT: 'awaitingtrickresult'
+    AWAITING_TRICK_TYPE: 'awaitingtricktype',
+    AWAITING_TRICK_RESULT: 'awaitingtrickresult'
 };
 
 export const GAME_STATE_NAMES = {
-    NEW_GAME: 'New Game',
-    TRICK_TYPE_SELECTED: 'Waiting On Trick Type Selection',
-    TRICK_RESULT: 'Waiting on Trick Result'
+    [GAME_STATES.NEW_GAME]: 'New Game',
+    [GAME_STATES.TRICK_TYPE_SELECTED]: 'Waiting On Trick Type Selection',
+    [GAME_STATES.TRICK_RESULT]: 'Waiting on Trick Result'
 };
 
 const TRICKS = {
@@ -33,41 +39,94 @@ const TRICKS = {
         [LEVELS.EASY]: [
             'Ollie',
             'Fakie Ollie',
-            'Frontside 180',
-            'Backside 180',
-            'Pop Shove-It',
+            'FS 180',
+            'BS 180',
+            'BS Pop Shove-It',
             'Fakie Pop Shove-It',
-            'Frontside Pop Shove-It',
-            'Fakie Frontside Pop Shove-It',
+            'FS Pop Shove-It',
+            'Fakie FS Pop Shove-It',
+            'Half Cab',
+            'Nollie BS Shuvit',
+            'Nollie FS Shuvit',
+            'Nollie BS 180',
         ],
         [LEVELS.MEDIUM]: [
             'Kickflip',
             'Heelflip',
             'Half Cab Flip',
-            'Frontside Flip',
-            'Backside Flip',
+            'FS Flip',
+            'BS Flip',
+            'Full Cab',
+            'Nollie BS 180',
+            'Varial Kickflip',
+            'Varial Heelflip',
+            'Half Cab Heelflip',
+            'Fakie FS 180 Kickflip',
+            'Fakie FS 180 Heelflip',
         ],
         [LEVELS.HARD]: [
             'Hardflip',
             'Inward Heelflip',
             '360 Flip',
+            'Laser Flip',
+            'Nollie Kickflip',
+            'Nollie Heelflip',
+            'Switch Kickflip',
+            'Switch Heelflip',
         ],
     },
     [TRICK_TYPES.TRANSITION]: {
         [LEVELS.EASY]: [
             'Rock to Fakie',
             'BS Rock and Roll',
+            'Fakie Rock',
+            'Half Cab Rock',
+            'Fakie Tail Stall',
+            'BS 5-0 Stall',
+            'BS Axle Stall',
+            'FS Axle Stall',
+            'BS Feeble Stall',
+            'BS 5050 Grind',
         ],
-        [LEVELS.MEDIUM]: [],
-        [LEVELS.HARD]: []
+        [LEVELS.MEDIUM]: [
+            'BS Disaster',
+            'FS Disaster',
+            'FS Air',
+            'BS Smith Stall',
+            'FS 5050 Grind',
+            'Fakie BS Crook',
+            'Nose Stall',
+            'Crook to Fakie',
+            'FS Rock and Roll',
+        ],
+        [LEVELS.HARD]: [
+            'FS Smith Stall',
+            'FS 5-0 Stall',
+            'BS Tail Stall',
+            'Blunt to Fakie',
+            'FS Feeble Stall',
+            'Tail Stall Revert'
+        ]
     },
     [TRICK_TYPES.LEDGE]: {
         [LEVELS.EASY]: [
-            'FS 50-50',
+            'FS 5050',
+            'BS 5050',
             'FS 5-0',
+            'BS Noseslide',
+            'FS Noseslide',
         ],
-        [LEVELS.MEDIUM]: [],
-        [LEVELS.HARD]: []
+        [LEVELS.MEDIUM]: [
+            'BS Crook',
+            'FS Crook',
+            'FS Smith',
+            'BS 5-0',
+            'FS Tailslide'
+        ],
+        [LEVELS.HARD]: [
+            'BS Smith',
+            'BS Tailslide'
+        ]
     }
 }
 

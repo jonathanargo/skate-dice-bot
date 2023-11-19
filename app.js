@@ -16,7 +16,10 @@ import {
   GetTrick,
   GetTrickTypePromptComponent,
   GetTrickResultComponent,
-  GetLetters
+  GetLetters,
+  LEVELS,
+  GAME_STATES,
+  LEVEL_NAMES,
 } from './skatedice.js';
 
 const app = express();
@@ -48,7 +51,7 @@ app.post('/interactions', async function (req, res) {
   if (gameState[userId] === undefined) {
     console.log('creating new game state for user '+userId);
     gameState[userId] = {
-      state: 'newgame',
+      state: GAME_STATES.NEW_GAME,
       points: 0,
       letters: 0,
       currentTrick: "",
@@ -81,8 +84,8 @@ app.post('/interactions', async function (req, res) {
       console.log('skatedice command received');
       console.log('player game state', playerGameState);
 
-      if (playerGameState.state === 'newgame' || playerGameState.state === 'awaitingtricktype') {
-        playerGameState.state = 'awaitingtricktype';
+      if (playerGameState.state === GAME_STATES.NEW_GAME || playerGameState.state === GAME_STATES.AWAITING_TRICK_TYPE) {
+        playerGameState.state = GAME_STATES.AWAITING_TRICK_TYPE;
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
@@ -92,8 +95,7 @@ app.post('/interactions', async function (req, res) {
         });
       }
 
-      // TODO JSA - Change to enum
-      if (playerGameState.state === 'awaitingtrickresult') {
+      if (playerGameState.state === GAME_STATES.AWAITING_TRICK_RESULT) {
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
@@ -131,11 +133,13 @@ app.post('/interactions', async function (req, res) {
       // We need to delete the trick type prompt once the user has responded to it
       const trickType = componentId.replace('trick_type_', '');
 
+      const pointsPerLevel = process.env.POINTS_PER_LEVEL;
+      let currentDifficulty = Math.min(Math.floor(playerGameState.points / pointsPerLevel)+1, LEVELS.HARD);
+
       // Get the random trick
-      // TODO JSA - I think this should give you the yes/no prompt instead of requiring you to 
-      let trick = GetTrick('easy', trickType);
+      let trick = GetTrick(currentDifficulty, trickType);
       playerGameState.currentTrick = trick;
-      playerGameState.state = 'awaitingtrickresult'; // TODO JSA - Change to enum
+      playerGameState.state = GAME_STATES.TRICK_TYPE_SELECTED;
       try {
         // Send the trick
         await res.send({
@@ -154,19 +158,31 @@ app.post('/interactions', async function (req, res) {
       return;
     }
 
-    // Trick Landed/Missed prompt
+    // Trick Landed/Missed prompt result - handle success/failure here
     if (componentId.startsWith('trick_result_')) {
-      // handle success and failure here
       console.log('got trick result prompt');
-      playerGameState.state = 'awaitingtricktype';
+      playerGameState.state = GAME_STATES.AWAITING_TRICK_TYPE; // We now need to prompt for a new trick type
       if (componentId === 'trick_result_success') { // Handle trick success
+        // Keep track of the players current difficulty vs the new one after points are awarded. Lets up show level up message.
+        const pointsPerLevel = process.env.POINTS_PER_LEVEL;
+        let oldDifficulty = Math.min(Math.floor(playerGameState.points / pointsPerLevel)+1, LEVELS.HARD);
+
         // Award points and start a new trick
         playerGameState.points += 1;
-        
+        let newDifficulty = Math.min(Math.floor(playerGameState.points / pointsPerLevel)+1, LEVELS.HARD);
+
+        // Build prompt message.
+        let promptContent = "You landed the trick! You now have "+playerGameState.points+" points.";
+        if (oldDifficulty !== newDifficulty) {
+          // Add level up message if the player is a t a new difficulty.
+          promptContent += "\nYou levelled up! You are now at level "+LEVEL_NAMES[newDifficulty]+".";
+        }
+        promptContent += "\nSelect a new trick.";
+
         res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: "You landed the trick! You now have "+playerGameState.points+" points.\nSelect a new trick.",
+            content: promptContent,
             components: GetTrickTypePromptComponent(),
           }
         });
@@ -182,7 +198,7 @@ app.post('/interactions', async function (req, res) {
           res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: "You have SKATE. Game over\n You scored "+playerGameState.points+" points.",
+              content: "You have SKATE. Game over\n You scored "+gamePoints+" points.",
             }
           });
         } else {
