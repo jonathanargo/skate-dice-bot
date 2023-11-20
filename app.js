@@ -28,10 +28,6 @@ app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
 
-app.get('/', (req, res) => {
-  res.send('Hello, World!');
-});
-
 let gameState = {};
 
 app.post('/interactions', async function (req, res) {
@@ -67,15 +63,6 @@ app.post('/interactions', async function (req, res) {
   // Handles all "/command" commands.
   if (type === InteractionType.APPLICATION_COMMAND) {
     const { name, options } = data;
-
-    if (name === "test") {
-      return res.send({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: "Test command received!",
-        },
-      });
-    }
 
     if (name === 'skatedice') {
       console.log('skatedice command received');
