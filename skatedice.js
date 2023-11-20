@@ -1,7 +1,9 @@
+import 'dotenv/config';
+
 import {
     MessageComponentTypes,
     ButtonStyleTypes,
-  } from 'discord-interactions';
+} from 'discord-interactions';
 
 export const LEVELS = {
     EASY: 1,
@@ -194,3 +196,9 @@ export const GetLetters = (numberOfLetters) => {
     const word = "SKATE";
     return word.substring(0, numberOfLetters);
 }
+
+// Returns the difficulty 
+export const GetDifficulty = (points) => {
+    const pointsPerLevel = process.env.POINTS_PER_LEVEL;
+    return Math.min(Math.floor(points / pointsPerLevel)+1, LEVELS.HARD);
+} 

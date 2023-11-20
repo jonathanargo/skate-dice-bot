@@ -1,15 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
 
-// TODO JSA - remove unused imports
 import { VerifyDiscordRequest, DiscordRequest } from './utils.js';
 
 import {
   InteractionType,
-  InteractionResponseType,
-  InteractionResponseFlags,
-  MessageComponentTypes,
-  ButtonStyleTypes,
+  InteractionResponseType
 } from 'discord-interactions';
 
 import {
@@ -17,6 +13,7 @@ import {
   GetTrickTypePromptComponent,
   GetTrickResultComponent,
   GetLetters,
+  GetDifficulty,
   LEVELS,
   GAME_STATES,
   LEVEL_NAMES,
@@ -134,7 +131,7 @@ app.post('/interactions', async function (req, res) {
       const trickType = componentId.replace('trick_type_', '');
 
       const pointsPerLevel = process.env.POINTS_PER_LEVEL;
-      let currentDifficulty = Math.min(Math.floor(playerGameState.points / pointsPerLevel)+1, LEVELS.HARD);
+      let currentDifficulty = GetDifficulty(playerGameState.points);
 
       // Get the random trick
       let trick = GetTrick(currentDifficulty, trickType);
@@ -165,11 +162,11 @@ app.post('/interactions', async function (req, res) {
       if (componentId === 'trick_result_success') { // Handle trick success
         // Keep track of the players current difficulty vs the new one after points are awarded. Lets up show level up message.
         const pointsPerLevel = process.env.POINTS_PER_LEVEL;
-        let oldDifficulty = Math.min(Math.floor(playerGameState.points / pointsPerLevel)+1, LEVELS.HARD);
+        let oldDifficulty = GetDifficulty(playerGameState.points);
 
         // Award points and start a new trick
         playerGameState.points += 1;
-        let newDifficulty = Math.min(Math.floor(playerGameState.points / pointsPerLevel)+1, LEVELS.HARD);
+        let newDifficulty = GetDifficulty(playerGameState.points);
 
         // Build prompt message.
         let promptContent = "You landed the trick! You now have "+playerGameState.points+" points.";
@@ -195,6 +192,7 @@ app.post('/interactions', async function (req, res) {
           playerGameState.state = 'newgame';
           let gamePoints = playerGameState.points;
           playerGameState.points = 0; // Set points to zero since the game is over
+          playerGameState.letters = 0;
           res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
